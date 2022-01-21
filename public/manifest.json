@@ -1,0 +1,55 @@
+{
+    "name": "Scrum Poker",
+    "short_name": "Scrum Poker",
+    "description": "I build this Scrum Poker as a demo project to show how you can build an interactive web application using Remix.",
+    "scope": "/",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#2563eb",
+    "theme_color": "#2563eb",
+    "icons": [
+        {
+            "src": "\/img/favicons/android-icon-36x36.png?v=1",
+            "sizes": "36x36",
+            "type": "image\/png",
+            "density": "0.75"
+        },
+        {
+            "src": "\/img/favicons/android-icon-48x48.png?v=1",
+            "sizes": "48x48",
+            "type": "image\/png",
+            "density": "1.0"
+        },
+        {
+            "src": "\/img/favicons/android-icon-72x72.png?v=1",
+            "sizes": "72x72",
+            "type": "image\/png",
+            "density": "1.5"
+        },
+        {
+            "src": "\/img/favicons/android-icon-96x96.png?v=1",
+            "sizes": "96x96",
+            "type": "image\/png",
+            "density": "2.0"
+        },
+        {
+            "src": "\/img/favicons/android-icon-144x144.png?v=1",
+            "sizes": "144x144",
+            "type": "image\/png",
+            "density": "3.0"
+        },
+        {
+            "src": "\/img/favicons/android-icon-192x192.png?v=1",
+            "sizes": "192x192",
+            "type": "image\/png",
+            "density": "4.0"
+        },
+        {
+            "src": "\/img/favicons/favicon-512x512.png?v=1",
+            "sizes": "512x512",
+            "type": "image\/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
