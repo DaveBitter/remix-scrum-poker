@@ -11,11 +11,13 @@ import {
 import type { LinksFunction } from 'remix';
 
 import tailwindStyles from './tailwind.css'
+import noJSStyles from './styles/no-js.css'
 import useServiceWorker from './hooks/useServiceWorker';
+import { useEffect, useState } from 'react';
 
 export let links: LinksFunction = () => {
   return [
-    { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css' },
+    { rel: 'stylesheet', href: noJSStyles },
     { rel: 'stylesheet', href: tailwindStyles }
   ];
 };
@@ -99,9 +101,13 @@ function Document({
   children: React.ReactNode;
 }) {
   useServiceWorker();
+  const [hasJS, setHasJS] = useState(false);
+  useEffect(() => {
+    setHasJS(true)
+  }, []);
 
   return (
-    <html lang='en'>
+    <html lang='en' data-has-js={hasJS}>
       <head>
         <meta httpEquiv='Content-Type' content='text/html; charset=utf-8' />
         <meta httpEquiv='content-language' content='en' />

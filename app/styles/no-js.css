@@ -1,0 +1,41 @@
+@keyframes show {
+    from {
+        position: absolute;
+        z-index: -1
+    }
+
+    to {
+        position: static;
+        z-index: 0;
+    }
+}
+
+[data-has-js='true'] .no-js-show {
+    display: none;
+}
+
+[data-has-js='false'] .no-js-show {
+    position: absolute;
+    z-index: -1;
+    animation: show 0.01s ease-out forwards;
+    /* Give JS a chance to load */
+    animation-delay: 0.5s;
+}
+
+@keyframes hide {
+    from {
+        position: static;
+        z-index: 0;
+    }
+
+    to {
+        position: absolute;
+        z-index: -1
+    }
+}
+
+[data-has-js='false'] .no-js-hide {
+    animation: hide 0.01s ease-out forwards;
+    /* Give JS a chance to load */
+    animation-delay: 0.5s;
+}
