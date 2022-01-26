@@ -1,4 +1,4 @@
-import { ActionFunction, Form, redirect, useActionData } from "remix";
+import { ActionFunction, Form, redirect, useActionData, useSearchParams } from "remix";
 import { v4 as uuidv4 } from 'uuid';
 
 import { supabase } from "~/utils/supabaseClient";
@@ -13,6 +13,8 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
   const hostname = form.get("hostname") as string;
   const username = form.get("username") as string;
   const session_id = form.get("session_id") as string;
+
+  console.log(session_id);
 
   switch (form_type) {
     case 'create_session':
@@ -54,30 +56,37 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
 /*** Component ***/
 const Index = () => {
   const actionData = useActionData<ActionData>();
+  let [searchParams] = useSearchParams();
+
+  const join_session_id = searchParams.get('join_session_id') || ''
 
   return (
-    <main className='h-screen'>
-      <h1>Scrum Poker</h1>
+    <main className='h-screen flex justify-center lg:items-center p-4 bg-gradient-to-r from-indigo-500 to-blue-500'>
+      <div className='flex flex-col w-full max-w-2xl p-8 rounded-lg bg-white radius-m'>
+        {!join_session_id && <>
+          <h2 className='text-2xl mb-2 font-thin'>Create new session</h2>
+          <Form className='flex flex-col' method="post">
+            <input name="form_type" defaultValue="create_session" required hidden />
+            <label className='' htmlFor="hostname">Your name</label>
+            <input className='my-2 p-4 rounded-lg bg-gray-100' id="hostname" name="hostname" required />
+            <button className='p-4 rounded-lg mt-4 bg-indigo-500 text-white'>New session</button>
+          </Form>
 
-      <h2>Create new session</h2>
-      <Form method="post">
-        <input name="form_type" defaultValue="create_session" required hidden />
-        <label htmlFor="hostname">Your name</label>
-        <input id="hostname" name="hostname" required />
-        <button>New session</button>
-      </Form>
+          <hr className='h-0.5 my-12 bg-gray-100 border-none' />
+        </>}
 
-      <h2>Join existing session</h2>
-      <Form method="post">
-        <input name="form_type" defaultValue="join_session" required hidden />
-        <label htmlFor="session_id">Session ID</label>
-        <input id="session_id" name="session_id" required />
-        <label htmlFor="username">Your name</label>
-        <input id="username" name="username" required />
-        <button type='submit'>Join session</button>
-      </Form>
+        <h2 className='text-2xl mb-2 font-thin'>Join existing session</h2>
+        <Form className='flex flex-col mb-8' method="post">
+          <input name="form_type" defaultValue="join_session" required hidden />
+          <label className='' htmlFor="session_id">Session ID</label>
+          <input className={`my-2 p-4 rounded-lg bg-gray-100 ${!!join_session_id && 'text-gray-500 cursor-not-allowed'}`} defaultValue={join_session_id} id="session_id" name="session_id" readOnly={!!join_session_id} required />
+          <label className='' htmlFor="username">Your name</label>
+          <input className='my-2 p-4 rounded-lg bg-gray-100' id="username" name="username" autoFocus={!!join_session_id} required />
+          <button className='p-4 rounded-lg mt-4 bg-indigo-500 text-white'>Join session</button>
+        </Form>
 
-      {actionData?.error && <pre>{JSON.stringify(actionData?.error)}</pre>}
+        {actionData?.error && <pre>{JSON.stringify(actionData?.error)}</pre>}
+      </div>
     </main >
   );
 }
