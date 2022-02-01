@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, LoaderFunction, redirect, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
+import { ActionFunction, Form, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
 
 import { supabase } from "~/utils/supabaseClient";
 
@@ -16,6 +16,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .select('*')
         .eq('session_id', params.session_id)
         .single()
+
     return { session_id: params.session_id, data, error };
 };
 
@@ -69,19 +70,20 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
 const Index = () => {
     const loaderData = useLoaderData<any>();
     const submit = useSubmit();
+    const fetcher = useFetcher();
 
     let { session_id } = useParams();
     let [searchParams] = useSearchParams();
     const username = searchParams.get('username') || ''
 
-    const [votes, setVotes] = useState(loaderData?.data?.votes)
-    const [votesVisible, setVotesVisible] = useState(loaderData?.data?.votes_visible)
+    const votes = fetcher?.data?.data?.votes || loaderData?.data?.votes;
+    const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.data?.votes_visible;
+
     useEffect(() => {
         const subscription = supabase
             .from(`sessions:session_id=eq.${session_id}`)
-            .on('UPDATE', (payload: any) => {
-                setVotes(payload?.new?.votes)
-                setVotesVisible(payload?.new?.votes_visible)
+            .on('UPDATE', () => {
+                fetcher.load(window.location.pathname + window.location.search);
             })
             .subscribe()
 
