@@ -1,14 +1,37 @@
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
+import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
+import { v4 as uuidv4 } from 'uuid';
 
+import { commitSession, getSession } from "~/sessions";
 import { supabase } from "~/utils/supabaseClient";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
-    const requestURL = new URL(request.url);
-    const username = requestURL.searchParams.get("username");
+    const session = await getSession(
+        request.headers.get("Cookie")
+    );
 
-    if (!username) {
-        return redirect(`/?join_session_id=${params.session_id}`);
+    let user;
+
+    const requestURL = new URL(request.url);
+    let username = requestURL.searchParams.get("username");
+
+    if (params.session_id) {
+        if (username) {
+            if (session.get(params.session_id)?.username) {
+                user = session.get(params.session_id);
+            } else {
+                session.set(params.session_id, { vote_id: uuidv4(), username })
+
+                return redirect(`/session/${params.session_id}`, {
+                    headers: {
+                        "Set-Cookie": await commitSession(session)
+                    }
+                })
+            }
+
+        } else {
+            user = session.get(params.session_id);
+        }
     }
 
     let { data, error } = await supabase
@@ -17,7 +40,35 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .eq('session_id', params.session_id)
         .single()
 
-    return { session_id: params.session_id, data, error };
+    let { data: userVote } = await supabase
+        .from('votes')
+        .select('*')
+        .eq('vote_id', user.vote_id)
+        .single();
+
+    if (!userVote) {
+        console.log(user);
+        await supabase
+            .from('votes')
+            .insert({ session_id: params.session_id, vote_id: user.vote_id, username: user.username, effort: null })
+            .single()
+    }
+
+    let { data: votes } = await supabase
+        .from('votes')
+        .select('*')
+        .eq('session_id', params.session_id);
+
+
+    if (votes) {
+        votes = votes.reduce((acc, { username, effort }) => ({ ...acc, [username]: effort }), {})
+    }
+
+    return json({ session_id: params.session_id, data, user, votes, error }, {
+        headers: {
+            "Set-Cookie": await commitSession(session)
+        }
+    });
 };
 
 type ActionData = {
@@ -30,7 +81,15 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
     const session_id = params.session_id;
     const form_type = form.get('form_type') as string;
     const effort = form.get("effort") as string;
-    const username = form.get("username") as string;
+
+    const session = await getSession(
+        request.headers.get("Cookie")
+    );
+
+    let vote_id;
+    if (session_id) {
+        vote_id = session.get(session_id).vote_id;
+    }
 
     let { data } = await supabase
         .from('sessions')
@@ -40,11 +99,16 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
 
     switch (form_type) {
         case 'update_effort':
+            let { data: vote } = await supabase
+                .from('votes')
+                .select('*')
+                .eq('vote_id', vote_id)
+                .single();
 
             await supabase
-                .from('sessions')
-                .update({ votes: { ...data?.votes, [username]: effort } })
-                .eq('session_id', session_id)
+                .from('votes')
+                .update({ ...vote, effort })
+                .eq('vote_id', vote_id)
             break;
         case 'toggle_effort':
             await supabase
@@ -53,15 +117,9 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
                 .eq('session_id', session_id)
             break;
         case 'clear_effort':
-            const updatedVotes = data?.votes;
-
-            Object.keys(data?.votes).forEach((key: string) => {
-                updatedVotes[key] = null
-            })
-
             await supabase
-                .from('sessions')
-                .update({ votes: updatedVotes, votes_visible: false })
+                .from('votes')
+                .update({ effort: null })
                 .eq('session_id', session_id)
             break;
         default:
@@ -78,29 +136,36 @@ const Session = () => {
     const fetcher = useFetcher();
 
     let { session_id } = useParams();
-    let [searchParams] = useSearchParams();
-    const username = searchParams.get('username') || ''
 
-    const votes = fetcher?.data?.data?.votes || loaderData?.data?.votes;
+    const user = loaderData?.user;
+    const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.data?.votes_visible;
 
     useEffect(() => {
-        const subscription = supabase
+        const sessionsSubscription = supabase
             .from(`sessions:session_id=eq.${session_id}`)
-            .on('UPDATE', () => {
-                fetcher.load(window.location.pathname + window.location.search);
+            .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
+            .subscribe()
+
+        const votesSubscription = supabase
+            .from(`votes:session_id=eq.${session_id}`)
+            .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
+            .on('INSERT', () => {
+                console.log('INSERTTTTT');
+                fetcher.load(window.location.pathname + window.location.search)
             })
             .subscribe()
 
         return () => {
-            subscription.unsubscribe();
+            sessionsSubscription.unsubscribe();
+            votesSubscription.unsubscribe();
         }
     }, []);
 
     const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
     const shareType = typeof window !== 'undefined' ? (window.navigator['share'] ? 'share' : 'copy') : 'copy';
     const handleShare = () => {
-        const content = window.location.origin + window.location.pathname;
+        const content = `${window.location.origin}/?join_session_id=${session_id}`;
 
         const triggerCopyToClipboard = () => {
             const placeholder = document.createElement('input');
@@ -154,27 +219,26 @@ const Session = () => {
             </aside>
 
             <div className='flex flex-col my-auto w-full max-w-2xl p-8 rounded-lg bg-white shadow-lg radius-m'>
-                <Form method='post' action={`/session/${session_id}?username=${username}`} onChange={e => submit(e.currentTarget)}>
+                <Form method='post' onChange={e => submit(e.currentTarget)}>
                     <input name="form_type" defaultValue="update_effort" required hidden />
-                    <input name="username" defaultValue={username} required hidden />
 
                     <fieldset className='grid grid-cols-3 gap-4' id="effort">
                         {['?', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100', '☕️'].map((effort: string) => <div key={effort}>
-                            <input className='peer sr-only' id={`effort_${effort}`} checked={votes[`${username}`] === effort} type="radio" value={effort} name="effort" required />
-                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${votes[username] === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
+                            <input className='peer sr-only' id={`effort_${effort}`} defaultChecked={votes[`${user.username}`] === effort} type="radio" value={effort} name="effort" required />
+                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${votes[user.username] === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
                         </div>)}
                     </fieldset>
                     <button className='no-js-show w-full p-4 rounded-lg mt-4 bg-emerald-500 text-white'>Submit</button>
                 </Form>
 
-                {loaderData?.data?.hostname === username && <>
+                {loaderData?.data?.hostname === user.username && <>
                     <div className='flex gap-4 mt-12'>
-                        <Form className='flex w-full' method='post' action={`/session/${session_id}?username=${username}`}>
+                        <Form className='flex w-full' method='post'>
                             <input name="form_type" defaultValue="toggle_effort" required hidden />
                             <button className='w-full p-2 rounded-lg bg-emerald-500 text-white uppercase'>Toggle votes</button>
                         </Form>
 
-                        <Form className='flex w-full' method='post' action={`/session/${session_id}?username=${username}`}>
+                        <Form className='flex w-full' method='post'>
                             <input name="form_type" defaultValue="clear_effort" required hidden />
                             <button className='w-full p-2 rounded-lg bg-gray-200 uppercase'>Clear votes</button>
                         </Form>

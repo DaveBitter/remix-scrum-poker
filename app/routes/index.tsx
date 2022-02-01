@@ -21,7 +21,7 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
 
       const newSessionData = await supabase
         .from('sessions')
-        .insert({ session_id: newSession_id, hostname, votes: { [`${hostname}`]: null } })
+        .insert({ session_id: newSession_id, hostname })
         .single()
 
       return newSessionData.error ? { error: newSessionData.error } : redirect(`/session/${newSession_id}?username=${hostname}`);
@@ -36,16 +36,7 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
         return { error: existingSessionData.error }
       }
 
-      if (!existingSessionData.data?.votes[username]) {
-        const updatedSessionData = await supabase
-          .from('sessions')
-          .update({ votes: { ...existingSessionData.data.votes, [`${username}`]: null } })
-          .eq('session_id', session_id)
-
-        return updatedSessionData.error ? { error: existingSessionData.error } : redirect(`/session/${session_id}?username=${username}`);
-      } else {
-        redirect(`/session/${session_id}?username=${username}`)
-      }
+      return redirect(`/session/${session_id}?username=${username}`)
     default:
       return {};
   }
