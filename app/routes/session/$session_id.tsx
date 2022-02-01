@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
+import { ActionFunction, Form, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
 
 import { supabase } from "~/utils/supabaseClient";
 
@@ -131,11 +131,15 @@ const Index = () => {
 
     return (
         <main className='flex flex-col justify-center lg:items-center h-screen p-4 pt-0 bg-gray-50'>
-            <aside className="w-screen p-4 -mx-4 rounded-b-lg bg-white shadow-lg">
-                {votes && <ul className='flex justify-around gap-4 max-w-full overflow-x-auto'>
+            <aside className="flex items-center w-screen p-4 -mx-4 rounded-b-lg bg-white shadow-lg">
+                <div className='relative'>
+                    <img className='box-content w-12 h-12 mr-2 pr-2 border-r-2 border-gray-200' src='/img/logo.png' />
+                    <Link className='absolute top-0 right-0 bottom-0 left-0' style={{ fontSize: 0 }} to='/'>Back to overview</Link>
+                </div>
+                {votes && <ul className='flex gap-8 pl-2 w-full overflow-x-auto'>
                     {Object.keys(votes).sort().map((key: string) => <li className={`flex flex-col flex-1 justify-center align-center text-center ${loaderData?.data?.hostname === key && '-order-1'}`} key={key}>
                         <span className='text-lg font-thin'>{key} {loaderData?.data?.hostname === key && <span className='py-1 px-2 rounded-lg text-xs font-medium bg-emerald-500 text-white'>host</span>}</span>
-                        <span className='text-2xl font-medium'>
+                        <span className='text-xl lg:text-2xl font-medium whitespace-nowrap	'>
                             {votesVisible ? <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] || '-'}</span> :
                                 <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] ? 'voted' : 'not voted'}</span>
                             }

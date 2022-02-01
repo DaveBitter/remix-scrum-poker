@@ -1,14 +1,12 @@
 # Scrum Poker
 
-![Scrum Poker web application](docs/scrum-poker.png)
+![Scrum Poker web application](docs/logo.svg)
 
-> Head over to [ip.davebitter.com](https://ip.davebitter.com) for a demo.
+> Head over to [scrum-poker.davebitter.com](https://scrum-poker.davebitter.com) for a demo.
 
-I build this Scrum Poker as a demo project to show how you can build an interactive web application using [Remix](https://remix.run/docs). Head over to [About>Remix](https://ip.davebitter.com/about/remix) for more information on the framework itself.
+I build this Scrum Poker as a demo project to show how you can build an interactive web application using [Remix](https://remix.run/docs).
 
 I use this web application as part of a talk on the basics of Remix. Head over to [my website](https://davebitter.com) for an overview of the talks I give and/or shoot me a message at [daveybitter@gmail.com](mailto:daveybitter@gmail.com) if you are interested in me giving this talk at your event!
-
-This application is a more extensive version of [this frontend challenge by frontendmentor.io](https://www.frontendmentor.io/challenges/scrum-poker-I8-0yYAH0/). The goal is to create a nicely designed web application that will make some calls to an API to retrieve information for a passed IP address and display an interactive map with the retrieved location.
 
 ## APIs
 Scrum Poker uses several APIs to retrieve data.

@@ -61,8 +61,10 @@ const Index = () => {
 
   return (
     <main className='h-screen flex justify-center lg:items-center p-4 bg-gray-50'>
+
       <div className='flex flex-col w-full max-w-2xl p-8 rounded-lg radius-m bg-white shadow-lg'>
         {!join_session_id && <>
+          <img className='box-content w-12 h-12 mb-8 lg:mb-12 mx-auto' src='/img/logo.png' />
           <h2 className='text-2xl mb-2 font-thin'>Create new session</h2>
           <Form className='flex flex-col' method="post">
             <input name="form_type" defaultValue="create_session" required hidden />
