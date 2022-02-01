@@ -29,28 +29,33 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
     const form = await request.formData();
     const session_id = params.session_id;
     const form_type = form.get('form_type') as string;
-    const votes_visible = form.get('votes_visible') as string;
     const effort = form.get("effort") as string;
     const username = form.get("username") as string;
-    const votes = form.get("votes") as string;
+
+    let { data } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('session_id', session_id)
+        .single()
 
     switch (form_type) {
         case 'update_effort':
+
             await supabase
                 .from('sessions')
-                .update({ votes: { ...JSON.parse(votes), [username]: effort } })
+                .update({ votes: { ...data?.votes, [username]: effort } })
                 .eq('session_id', session_id)
             break;
         case 'toggle_effort':
             await supabase
                 .from('sessions')
-                .update({ votes_visible: votes_visible === 'true' })
+                .update({ votes_visible: !Boolean(data.votes_visible) })
                 .eq('session_id', session_id)
             break;
         case 'clear_effort':
-            const updatedVotes = JSON.parse(votes);
+            const updatedVotes = data?.votes;
 
-            Object.keys(updatedVotes).forEach((key: string) => {
+            Object.keys(data?.votes).forEach((key: string) => {
                 updatedVotes[key] = null
             })
 
@@ -67,7 +72,7 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
 }
 
 /*** Component ***/
-const Index = () => {
+const Session = () => {
     const loaderData = useLoaderData<any>();
     const submit = useSubmit();
     const fetcher = useFetcher();
@@ -152,7 +157,6 @@ const Index = () => {
                 <Form method='post' action={`/session/${session_id}?username=${username}`} onChange={e => submit(e.currentTarget)}>
                     <input name="form_type" defaultValue="update_effort" required hidden />
                     <input name="username" defaultValue={username} required hidden />
-                    <input name="votes" defaultValue={JSON.stringify(votes)} required hidden />
 
                     <fieldset className='grid grid-cols-3 gap-4' id="effort">
                         {['?', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100', '☕️'].map((effort: string) => <div key={effort}>
@@ -167,13 +171,11 @@ const Index = () => {
                     <div className='flex gap-4 mt-12'>
                         <Form className='flex w-full' method='post' action={`/session/${session_id}?username=${username}`}>
                             <input name="form_type" defaultValue="toggle_effort" required hidden />
-                            <input name="votes_visible" defaultValue={`${!loaderData.data.votes_visible}`} required hidden />
                             <button className='w-full p-2 rounded-lg bg-emerald-500 text-white uppercase'>Toggle votes</button>
                         </Form>
 
                         <Form className='flex w-full' method='post' action={`/session/${session_id}?username=${username}`}>
                             <input name="form_type" defaultValue="clear_effort" required hidden />
-                            <input name="votes" defaultValue={JSON.stringify(votes)} required hidden />
                             <button className='w-full p-2 rounded-lg bg-gray-200 uppercase'>Clear votes</button>
                         </Form>
                     </div>
@@ -188,4 +190,4 @@ const Index = () => {
     );
 }
 
-export default Index
+export default Session
