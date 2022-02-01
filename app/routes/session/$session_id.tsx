@@ -1,37 +1,22 @@
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSearchParams, useSubmit } from "remix";
-import { v4 as uuidv4 } from 'uuid';
+import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSubmit } from "remix";
 
 import { commitSession, getSession } from "~/sessions";
 import { supabase } from "~/utils/supabaseClient";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
+    if (!params.session_id) {
+        return redirect('/')
+    }
+
     const session = await getSession(
         request.headers.get("Cookie")
     );
 
-    let user;
+    let user = session.get(params.session_id);
 
-    const requestURL = new URL(request.url);
-    let username = requestURL.searchParams.get("username");
-
-    if (params.session_id) {
-        if (username) {
-            if (session.get(params.session_id)?.username) {
-                user = session.get(params.session_id);
-            } else {
-                session.set(params.session_id, { vote_id: uuidv4(), username })
-
-                return redirect(`/session/${params.session_id}`, {
-                    headers: {
-                        "Set-Cookie": await commitSession(session)
-                    }
-                })
-            }
-
-        } else {
-            user = session.get(params.session_id);
-        }
+    if (!user) {
+        return redirect(`/?join_session_id=${params.session_id}`)
     }
 
     let { data, error } = await supabase
@@ -40,6 +25,8 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .eq('session_id', params.session_id)
         .single()
 
+    user.isHost = data.host_id === user.vote_id
+
     let { data: userVote } = await supabase
         .from('votes')
         .select('*')
@@ -47,7 +34,6 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .single();
 
     if (!userVote) {
-        console.log(user);
         await supabase
             .from('votes')
             .insert({ session_id: params.session_id, vote_id: user.vote_id, username: user.username, effort: null })
@@ -59,12 +45,14 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .select('*')
         .eq('session_id', params.session_id);
 
+    let hostname;
 
     if (votes) {
+        hostname = votes.find(({ vote_id }) => vote_id === data.host_id)?.username;
         votes = votes.reduce((acc, { username, effort }) => ({ ...acc, [username]: effort }), {})
     }
 
-    return json({ session_id: params.session_id, data, user, votes, error }, {
+    return json({ session_id: params.session_id, data, user, hostname, votes, error }, {
         headers: {
             "Set-Cookie": await commitSession(session)
         }
@@ -86,9 +74,9 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
         request.headers.get("Cookie")
     );
 
-    let vote_id;
+    let user;
     if (session_id) {
-        vote_id = session.get(session_id).vote_id;
+        user = session.get(session_id);
     }
 
     let { data } = await supabase
@@ -102,13 +90,13 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
             let { data: vote } = await supabase
                 .from('votes')
                 .select('*')
-                .eq('vote_id', vote_id)
+                .eq('vote_id', user.vote_id)
                 .single();
 
             await supabase
                 .from('votes')
                 .update({ ...vote, effort })
-                .eq('vote_id', vote_id)
+                .eq('vote_id', user.vote_id)
             break;
         case 'toggle_effort':
             await supabase
@@ -150,10 +138,7 @@ const Session = () => {
         const votesSubscription = supabase
             .from(`votes:session_id=eq.${session_id}`)
             .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
-            .on('INSERT', () => {
-                console.log('INSERTTTTT');
-                fetcher.load(window.location.pathname + window.location.search)
-            })
+            .on('INSERT', () => fetcher.load(window.location.pathname + window.location.search))
             .subscribe()
 
         return () => {
@@ -207,8 +192,8 @@ const Session = () => {
                     <Link className='absolute top-0 right-0 bottom-0 left-0' style={{ fontSize: 0 }} to='/'>Back to overview</Link>
                 </div>
                 {votes && <ul className='flex gap-8 pl-2 w-full overflow-x-auto'>
-                    {Object.keys(votes).sort().map((key: string) => <li className={`flex flex-col flex-1 justify-center align-center text-center ${loaderData?.data?.hostname === key && '-order-1'}`} key={key}>
-                        <span className='text-lg font-thin'>{key} {loaderData?.data?.hostname === key && <span className='py-1 px-2 rounded-lg text-xs font-medium bg-emerald-500 text-white'>host</span>}</span>
+                    {Object.keys(votes).sort().map((key: string) => <li className={`flex flex-col flex-1 justify-center align-center text-center ${loaderData?.hostname === key && '-order-1'}`} key={key}>
+                        <span className='text-lg font-thin'>{key} {loaderData?.hostname === key && <span className='py-1 px-2 rounded-lg text-xs font-medium bg-emerald-500 text-white'>host</span>}</span>
                         <span className='text-xl lg:text-2xl font-medium whitespace-nowrap	'>
                             {votesVisible ? <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] || '-'}</span> :
                                 <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] ? 'voted' : 'not voted'}</span>
@@ -231,7 +216,7 @@ const Session = () => {
                     <button className='no-js-show w-full p-4 rounded-lg mt-4 bg-emerald-500 text-white'>Submit</button>
                 </Form>
 
-                {loaderData?.data?.hostname === user.username && <>
+                {user.isHost && <>
                     <div className='flex gap-4 mt-12'>
                         <Form className='flex w-full' method='post'>
                             <input name="form_type" defaultValue="toggle_effort" required hidden />
