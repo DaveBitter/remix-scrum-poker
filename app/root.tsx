@@ -128,10 +128,10 @@ function Document({
         <link rel='icon' type='image/png' sizes='16x16' href='/img/favicons/favicon-16x16.png?v=2' />
         <link rel='manifest' href='/manifest.json' />
 
-        <meta name='msapplication-TileColor' content='#2563eb' />
+        <meta name='msapplication-TileColor' content='#10b981' />
         <meta name='msapplication-TileImage' content='/img/favicons/ms-icon-144x144.png?v=2' />
 
-        <meta name='theme-color' content='#2563eb'></meta>
+        <meta name='theme-color' content='#10b981'></meta>
 
         <meta property='og:image' content={`${process.env.NODE_ENV !== 'development' ? 'https://scrum-poker.davebitter.com' : ''}/img/logo.png?v=2`} />
         <meta property='og:title' content='Scrum Poker' />
