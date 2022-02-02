@@ -1,5 +1,4 @@
 // Libs
-import { useState } from "react";
 import { Form, Link, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
 
 // Utils
@@ -9,6 +8,7 @@ import { sessionIDLoader, SessionIDLoaderData } from "~/loaderFunctions/$session
 // Components
 import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 import useSupabaseSubscription from "~/hooks/useSupabaseSubscription";
+import useShare from "~/hooks/useShare";
 
 // Page
 export const loader = sessionIDLoader
@@ -23,47 +23,12 @@ const Session = () => {
     loaderData?.session_id && useSupabaseSubscription(`sessions:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
     loaderData?.session_id && useSupabaseSubscription(`votes:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
 
+    const { usedShareType, triggerShare, showCopiedFeedback } = useShare({ type: 'share', content: `${typeof window !== 'undefined' && window.location.origin}/?join_session_id=${loaderData?.session_id}` })
+
     const error = loaderData?.error || actionData?.error;
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.votes_visible || loaderData?.votes_visible;
-
-    const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
-    const shareType = typeof window !== 'undefined' ? (window.navigator['share'] ? 'share' : 'copy') : 'copy';
-    const handleShare = () => {
-        const content = `${window.location.origin}/?join_session_id=${loaderData?.session_id}`;
-
-        const triggerCopyToClipboard = () => {
-            const placeholder = document.createElement('input');
-
-            document.body.appendChild(placeholder);
-            placeholder.setAttribute('value', content);
-            placeholder.select();
-
-            document.execCommand('copy');
-
-            document.body.removeChild(placeholder);
-
-            setShowCopiedFeedback(true)
-            setTimeout(() => {
-                setShowCopiedFeedback(false);
-            }, 2000)
-        };
-
-        const triggerNativeShare = () => {
-            window.navigator['share']({
-                url: content
-            });
-        };
-
-        switch (shareType) {
-            case 'share':
-                triggerNativeShare();
-            default:
-                triggerCopyToClipboard();
-                break;
-        }
-    }
 
     return (
         <main className='flex flex-col justify-center lg:items-center h-screen p-4 pt-0 bg-gray-50'>
@@ -114,7 +79,7 @@ const Session = () => {
 
             <footer className='flex items-center w-full lg:max-w-sm p-4 -mb-4 rounded-t-lg bg-white shadow-lg'>
                 <p className='text-sm'><span className='text-gray-400 select-none'>Session </span><span className='font-mono text-emerald-400'>{loaderData?.session_id}</span></p>
-                <button className={`no-js-hide whitespace-nowrap w-32 text-sm ml-auto p-2 uppercase rounded-lg ${showCopiedFeedback ? 'bg-emerald-500 text-white cursor-default' : 'bg-emerald-100 text-emerald-600'}`} disabled={showCopiedFeedback} onClick={handleShare}>{showCopiedFeedback ? <span>Copied!</span> : <span>{shareType} invite</span>}</button>
+                <button className={`no-js-hide whitespace-nowrap w-32 text-sm ml-auto p-2 uppercase rounded-lg ${showCopiedFeedback ? 'bg-emerald-500 text-white cursor-default' : 'bg-emerald-100 text-emerald-600'}`} disabled={showCopiedFeedback} onClick={triggerShare}>{showCopiedFeedback ? <span>Copied!</span> : <span>{usedShareType} invite</span>}</button>
             </footer>
             {error && <ErrorMessage error={error} />}
         </main>
