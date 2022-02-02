@@ -1,62 +1,17 @@
-import { ActionFunction, Form, redirect, useActionData, useSearchParams } from "remix";
-// @ts-ignore
-import { hri } from 'human-readable-ids';
-import { v4 as uuidv4 } from 'uuid';
+// Libs
+import { Form, useActionData, useSearchParams } from "remix";
 
-import { supabase } from "~/utils/supabaseClient";
-import { getSession, getSessionStorageInit } from "~/sessions";
+// Utils
 import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 
-type ActionData = {
-  join_session_id?: string;
-  error?: string;
-}
+// Components
+import { indexAction, IndexActionData } from "~/actionFunctions";
 
-export const action: ActionFunction = async ({ request }): Promise<Response | ActionData> => {
-  const formData = await request.formData();
-  const cookieSession = await getSession(request.headers.get("Cookie"));
+export const action = indexAction;
 
-  const form_type = formData.get("form_type");
-  const username = formData.get("username");
-  const session_id = formData.get("session_id") as string;
-  const user_id = uuidv4();
-
-  switch (form_type) {
-    case 'create_session':
-      const newSession_id = hri.random();
-
-      cookieSession.set(newSession_id, { user_id, username })
-
-      const { error: newSessionError } = await supabase
-        .from('sessions')
-        .insert({ session_id: newSession_id, host_id: user_id })
-        .single()
-
-      return newSessionError ? { error: JSON.stringify(newSessionError) } : redirect(`/session/${newSession_id}`, await getSessionStorageInit(cookieSession));
-    case 'join_session':
-      const { error: existingSessionError } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('session_id', session_id)
-        .single()
-
-
-      if (existingSessionError) {
-        return { error: JSON.stringify(existingSessionError) }
-      }
-
-      cookieSession.set(session_id, { user_id, username })
-
-      return redirect(`/session/${session_id}`, await getSessionStorageInit(cookieSession))
-    default:
-      return {};
-  }
-
-};
-
-/*** Component ***/
+// Page
 const Index = () => {
-  const actionData = useActionData<ActionData>();
+  const actionData = useActionData<IndexActionData>();
   let [searchParams] = useSearchParams();
 
   const join_session_id = searchParams.get('join_session_id') || ''

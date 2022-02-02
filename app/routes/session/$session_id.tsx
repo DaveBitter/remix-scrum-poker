@@ -1,176 +1,26 @@
+// Libs
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
-import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
+import { Form, Link, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
 
-import { getSession, getSessionStorageInit } from "~/sessions";
+// Utils
+import { sessionIDAction, SessionIDActionData } from "~/actionFunctions/$session_id";
+import { sessionIDLoader, SessionIDLoaderData } from "~/loaderFunctions/$session_id";
 import { supabase } from "~/utils/supabaseClient";
 
-type LoaderData = {
-    error?: string;
-    session_id?: string;
-    user?: {
-        user_id: string;
-        username: string;
-        isHost: boolean;
-    };
-    votes?: {
-        [key in string]: string;
-    };
-    hostname?: string;
-    votes_visible?: boolean;
-}
+// Components
+import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 
-export const loader: LoaderFunction = async ({ params, request }): Promise<Response | LoaderData> => {
-    if (!params.session_id) {
-        return redirect('/')
-    }
+// Page
+export const loader = sessionIDLoader
+export const action = sessionIDAction;
 
-    const cookieSession = await getSession(request.headers.get("Cookie"));
-    let user = cookieSession.get(params.session_id);
-
-    if (!user) {
-        return redirect(`/?join_session_id=${params.session_id}`)
-    }
-
-    const { data: sessionData, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('session_id', params.session_id)
-        .single()
-
-    user.isHost = sessionData.host_id === user.user_id
-
-    const { data: userVote, error: userVoteError } = await supabase
-        .from('votes')
-        .select('*')
-        .eq('user_id', user.user_id)
-        .single();
-
-    if (!userVote) {
-        const { error: inserVotesError } = await supabase
-            .from('votes')
-            .insert({ session_id: params.session_id, user_id: user.user_id, username: user.username, effort: null })
-            .single()
-
-        if (inserVotesError) {
-            return { error: JSON.stringify(inserVotesError) }
-        }
-    }
-
-    let { data: votes, error: votesError } = await supabase
-        .from('votes')
-        .select('*')
-        .eq('session_id', params.session_id);
-
-    if (votesError) {
-        return { error: JSON.stringify(votesError) }
-    }
-    let hostname;
-
-    if (votes) {
-        hostname = votes.find(({ user_id }) => user_id === sessionData.host_id)?.username;
-        votes = votes.reduce((acc, { username, effort }) => ({ ...acc, [username]: effort }), {})
-    }
-
-    return json({
-        session_id: params.session_id,
-        votes_visible: sessionData.votes_visible,
-        user,
-        hostname,
-        votes,
-        error
-    }, await getSessionStorageInit(cookieSession));
-};
-
-type ActionData = {
-    error?: string
-}
-
-export const action: ActionFunction = async ({ request, params }): Promise<Response | ActionData> => {
-    const form = await request.formData();
-    const session_id = params.session_id;
-    const form_type = form.get('form_type') as string;
-    const effort = form.get("effort") as string;
-
-    const session = await getSession(
-        request.headers.get("Cookie")
-    );
-
-    let user;
-    if (session_id) {
-        user = session.get(session_id);
-    }
-
-    let { data } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('session_id', session_id)
-        .single()
-
-    switch (form_type) {
-        case 'update_effort':
-            const { data: vote, error: getEffortToUpdateError } = await supabase
-                .from('votes')
-                .select('*')
-                .eq('user_id', user.user_id)
-                .single();
-
-            if (getEffortToUpdateError) {
-                return { error: JSON.stringify(getEffortToUpdateError) }
-            }
-            const { error: updateEffortError } = await supabase
-                .from('votes')
-                .update({ ...vote, effort })
-                .eq('user_id', user.user_id)
-
-            if (updateEffortError) {
-                return { error: JSON.stringify(updateEffortError) }
-            }
-            break;
-        case 'toggle_effort':
-            const { error: toggleEffortError } = await supabase
-                .from('sessions')
-                .update({ votes_visible: !Boolean(data.votes_visible) })
-                .eq('session_id', session_id)
-
-            if (toggleEffortError) {
-                return { error: JSON.stringify(toggleEffortError) }
-            }
-            break;
-        case 'clear_effort':
-            const { error: clearEffortError } = await supabase
-                .from('votes')
-                .update({ effort: null })
-                .eq('session_id', session_id)
-
-            if (clearEffortError) {
-                return { error: JSON.stringify(clearEffortError) }
-            }
-
-            const { error: clearEffortToggleError } = await supabase
-                .from('sessions')
-                .update({ votes_visible: !Boolean(data.votes_visible) })
-                .eq('session_id', session_id)
-
-            if (clearEffortToggleError) {
-                return { error: JSON.stringify(clearEffortToggleError) }
-            }
-            break;
-        default:
-            break;
-    }
-
-    return {};
-}
-
-/*** Component ***/
 const Session = () => {
-    const loaderData = useLoaderData<LoaderData>();
-    const actionData = useActionData<ActionData>();
+    const loaderData = useLoaderData<SessionIDLoaderData>();
+    const actionData = useActionData<SessionIDActionData>();
     const submit = useSubmit();
     const fetcher = useFetcher();
-    const error = loaderData?.error || actionData?.error;
 
+    const error = loaderData?.error || actionData?.error;
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.votes_visible;
