@@ -53,6 +53,10 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
             }
             break;
         case 'toggle_effort':
+            if (sessionData.host_id !== user.user_id) {
+                return { error: 'Not authorized to toggle effort.' }
+            }
+
             const { error: toggleEffortError } = await supabase
                 .from('sessions')
                 .update({ votes_visible: !Boolean(sessionData.votes_visible) })
@@ -63,6 +67,10 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
             }
             break;
         case 'clear_effort':
+            if (sessionData.host_id !== user.user_id) {
+                return { error: 'Not authorized to clear effort.' }
+            }
+
             const { error: clearEffortError } = await supabase
                 .from('votes')
                 .update({ effort: null })
