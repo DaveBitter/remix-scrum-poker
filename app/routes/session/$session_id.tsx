@@ -29,6 +29,7 @@ const Session = () => {
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.votes_visible || loaderData?.votes_visible;
+    const usersNotVoted = Object.keys(votes).filter(key => !votes[key]);
 
     return (
         <main className='flex flex-col justify-center lg:items-center h-screen p-4 pt-0 bg-gray-50'>
@@ -37,9 +38,13 @@ const Session = () => {
                     <img className='box-content w-12 h-12 mr-2 pr-2 border-r-2 border-gray-200' src='/img/logo.png' />
                     <Link className='absolute top-0 right-0 bottom-0 left-0' style={{ fontSize: 0 }} to='/'>Back to overview</Link>
                 </div>
+
                 {votes && <ul className='flex gap-8 pl-2 w-full overflow-x-auto'>
                     {Object.keys(votes).sort().map((key: string) => <li className={`flex flex-col flex-1 justify-center align-center text-center ${loaderData?.hostname === key && '-order-1'}`} key={key}>
-                        <span className='text-lg font-thin'>{key} {loaderData?.hostname === key && <span className='py-1 px-2 rounded-lg text-xs font-medium bg-emerald-500 text-white'>host</span>}</span>
+                        <span className='text-lg font-thin'>{key}
+                            {loaderData?.hostname === key && <span className='py-1 px-2 ml-2 rounded-lg text-xs font-medium bg-emerald-500 text-white'>host</span>}
+                            {loaderData?.user?.username === key && <span className='py-1 px-2 ml-2 rounded-lg text-xs font-medium bg-gray-200 text-gray-500'>you</span>}
+                        </span>
                         <span className='text-xl lg:text-2xl font-medium whitespace-nowrap	'>
                             {votesVisible ? <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] || '-'}</span> :
                                 <span className={votes[key] ? 'text-emerald-500' : 'text-gray-300'}>{votes[key] ? 'voted' : 'not voted'}</span>
@@ -50,6 +55,8 @@ const Session = () => {
             </aside>
 
             <div className='flex flex-col my-auto w-full max-w-2xl p-8 rounded-lg bg-white shadow-lg radius-m'>
+                <p className='no-js-hide mx-auto py-1 px-2 mb-4 rounded-lg bg-gray-100 text-gray-500'>waiting on <span className='text-emerald-500'>{usersNotVoted.length === 1 ? usersNotVoted[0] : `${usersNotVoted.length} people`}</span></p>
+
                 <Form method='post' onChange={e => submit(e.currentTarget)}>
                     <input name="form_type" defaultValue="update_effort" required hidden />
 
@@ -66,7 +73,7 @@ const Session = () => {
                     <div className='flex gap-4 mt-12'>
                         <Form className='flex w-full' method='post'>
                             <input name="form_type" defaultValue="toggle_effort" required hidden />
-                            <button className='w-full p-2 rounded-lg bg-emerald-500 text-white uppercase'>Toggle votes</button>
+                            <button className='w-full p-2 rounded-lg bg-emerald-500 text-white uppercase'>{votesVisible ? 'hide' : 'show'} votes</button>
                         </Form>
 
                         <Form className='flex w-full' method='post'>
