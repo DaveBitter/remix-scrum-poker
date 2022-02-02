@@ -5,9 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { supabase } from "~/utils/supabaseClient";
 import { getSession, getSessionStorageInit } from "~/sessions";
+import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 
 type ActionData = {
-  error?: any
+  join_session_id?: string;
+  error?: string;
 }
 
 export const action: ActionFunction = async ({ request }): Promise<Response | ActionData> => {
@@ -30,7 +32,7 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
         .insert({ session_id: newSession_id, host_id: user_id })
         .single()
 
-      return newSessionError ? { error: newSessionError } : redirect(`/session/${newSession_id}`, await getSessionStorageInit(cookieSession));
+      return newSessionError ? { error: JSON.stringify(newSessionError) } : redirect(`/session/${newSession_id}`, await getSessionStorageInit(cookieSession));
     case 'join_session':
       const { error: existingSessionError } = await supabase
         .from('sessions')
@@ -40,7 +42,7 @@ export const action: ActionFunction = async ({ request }): Promise<Response | Ac
 
 
       if (existingSessionError) {
-        return { error: existingSessionError }
+        return { error: JSON.stringify(existingSessionError) }
       }
 
       cookieSession.set(session_id, { user_id, username })
@@ -60,11 +62,12 @@ const Index = () => {
   const join_session_id = searchParams.get('join_session_id') || ''
 
   return (
-    <main className='h-screen flex justify-center lg:items-center p-4 bg-gray-50'>
+    <main className='h-screen flex flex-col justify-center lg:items-center p-4 bg-gray-50'>
 
       <div className='flex flex-col w-full max-w-2xl p-8 rounded-lg radius-m bg-white shadow-lg'>
+        <img className='box-content w-12 h-12 mb-8 lg:mb-12 mx-auto' src='/img/logo.png' />
+
         {!join_session_id && <>
-          <img className='box-content w-12 h-12 mb-8 lg:mb-12 mx-auto' src='/img/logo.png' />
           <h2 className='text-2xl mb-2 font-thin'>Create new session</h2>
           <Form className='flex flex-col' method="post">
             <input name="form_type" defaultValue="create_session" required hidden />
@@ -80,14 +83,14 @@ const Index = () => {
         <Form className='flex flex-col mb-8' method="post">
           <input name="form_type" defaultValue="join_session" required hidden />
           <label className='' htmlFor="session_id">Session ID</label>
-          <input className={`my - 2 p - 4 rounded - lg bg - gray - 100 ${!!join_session_id && 'text-gray-500 cursor-not-allowed'}`} defaultValue={join_session_id} id="session_id" name="session_id" readOnly={!!join_session_id} required />
+          <input className={`my-2 p-4 rounded-lg bg-gray-100 ${!!join_session_id && 'text-gray-500 cursor-not-allowed'}`} defaultValue={join_session_id} id="session_id" name="session_id" readOnly={!!join_session_id} required />
           <label className='' htmlFor="username">Your name</label>
           <input className='my-2 p-4 rounded-lg bg-gray-100' id="username" name="username" autoFocus={!!join_session_id} required />
           <button className='p-4 rounded-lg mt-4 uppercase bg-emerald-500 text-white'>Join session</button>
         </Form>
 
-        {actionData?.error && <pre>{JSON.stringify(actionData?.error)}</pre>}
       </div>
+      {actionData?.error && <ErrorMessage error={actionData.error} />}
     </main >
   );
 }

@@ -1,10 +1,26 @@
 import { useEffect, useState } from "react";
-import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSubmit } from "remix";
+import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
+import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 
 import { getSession, getSessionStorageInit } from "~/sessions";
 import { supabase } from "~/utils/supabaseClient";
 
-export const loader: LoaderFunction = async ({ params, request }) => {
+type LoaderData = {
+    error?: string;
+    session_id?: string;
+    user?: {
+        user_id: string;
+        username: string;
+        isHost: boolean;
+    };
+    votes?: {
+        [key in string]: string;
+    };
+    hostname?: string;
+    votes_visible?: boolean;
+}
+
+export const loader: LoaderFunction = async ({ params, request }): Promise<Response | LoaderData> => {
     if (!params.session_id) {
         return redirect('/')
     }
@@ -16,45 +32,58 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         return redirect(`/?join_session_id=${params.session_id}`)
     }
 
-    let { data, error } = await supabase
+    const { data: sessionData, error } = await supabase
         .from('sessions')
         .select('*')
         .eq('session_id', params.session_id)
         .single()
 
-    user.isHost = data.host_id === user.user_id
+    user.isHost = sessionData.host_id === user.user_id
 
-    let { data: userVote } = await supabase
+    const { data: userVote, error: userVoteError } = await supabase
         .from('votes')
         .select('*')
         .eq('user_id', user.user_id)
         .single();
 
     if (!userVote) {
-        await supabase
+        const { error: inserVotesError } = await supabase
             .from('votes')
             .insert({ session_id: params.session_id, user_id: user.user_id, username: user.username, effort: null })
             .single()
+
+        if (inserVotesError) {
+            return { error: JSON.stringify(inserVotesError) }
+        }
     }
 
-    let { data: votes } = await supabase
+    let { data: votes, error: votesError } = await supabase
         .from('votes')
         .select('*')
         .eq('session_id', params.session_id);
 
+    if (votesError) {
+        return { error: JSON.stringify(votesError) }
+    }
     let hostname;
 
     if (votes) {
-        hostname = votes.find(({ user_id }) => user_id === data.host_id)?.username;
+        hostname = votes.find(({ user_id }) => user_id === sessionData.host_id)?.username;
         votes = votes.reduce((acc, { username, effort }) => ({ ...acc, [username]: effort }), {})
     }
 
-    return json({ session_id: params.session_id, data, user, hostname, votes, error }, await getSessionStorageInit(cookieSession));
+    return json({
+        session_id: params.session_id,
+        votes_visible: sessionData.votes_visible,
+        user,
+        hostname,
+        votes,
+        error
+    }, await getSessionStorageInit(cookieSession));
 };
 
 type ActionData = {
-    error?: any,
-    data?: any
+    error?: string
 }
 
 export const action: ActionFunction = async ({ request, params }): Promise<Response | ActionData> => {
@@ -80,28 +109,43 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
 
     switch (form_type) {
         case 'update_effort':
-            let { data: vote } = await supabase
+            const { data: vote, error: getEffortToUpdateError } = await supabase
                 .from('votes')
                 .select('*')
                 .eq('user_id', user.user_id)
                 .single();
 
-            await supabase
+            if (getEffortToUpdateError) {
+                return { error: JSON.stringify(getEffortToUpdateError) }
+            }
+            const { error: updateEffortError } = await supabase
                 .from('votes')
                 .update({ ...vote, effort })
                 .eq('user_id', user.user_id)
+
+            if (updateEffortError) {
+                return { error: JSON.stringify(updateEffortError) }
+            }
             break;
         case 'toggle_effort':
-            await supabase
+            const { error: toggleEffortError } = await supabase
                 .from('sessions')
                 .update({ votes_visible: !Boolean(data.votes_visible) })
                 .eq('session_id', session_id)
+
+            if (toggleEffortError) {
+                return { error: JSON.stringify(toggleEffortError) }
+            }
             break;
         case 'clear_effort':
-            await supabase
+            const { error: clearEffortError } = await supabase
                 .from('votes')
                 .update({ effort: null })
                 .eq('session_id', session_id)
+
+            if (clearEffortError) {
+                return { error: JSON.stringify(clearEffortError) }
+            }
             break;
         default:
             break;
@@ -112,24 +156,24 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
 
 /*** Component ***/
 const Session = () => {
-    const loaderData = useLoaderData<any>();
+    const loaderData = useLoaderData<LoaderData>();
+    const actionData = useActionData<ActionData>();
     const submit = useSubmit();
     const fetcher = useFetcher();
-
-    let { session_id } = useParams();
+    const error = loaderData?.error || actionData?.error;
 
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
-    const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.data?.votes_visible;
+    const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.votes_visible;
 
     useEffect(() => {
         const sessionsSubscription = supabase
-            .from(`sessions:session_id=eq.${session_id}`)
+            .from(`sessions:session_id=eq.${loaderData?.session_id}`)
             .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
             .subscribe()
 
         const votesSubscription = supabase
-            .from(`votes:session_id=eq.${session_id}`)
+            .from(`votes:session_id=eq.${loaderData?.session_id}`)
             .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
             .on('INSERT', () => fetcher.load(window.location.pathname + window.location.search))
             .subscribe()
@@ -143,7 +187,7 @@ const Session = () => {
     const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
     const shareType = typeof window !== 'undefined' ? (window.navigator['share'] ? 'share' : 'copy') : 'copy';
     const handleShare = () => {
-        const content = `${window.location.origin}/?join_session_id=${session_id}`;
+        const content = `${window.location.origin}/?join_session_id=${loaderData?.session_id}`;
 
         const triggerCopyToClipboard = () => {
             const placeholder = document.createElement('input');
@@ -202,14 +246,14 @@ const Session = () => {
 
                     <fieldset className='grid grid-cols-3 gap-4' id="effort">
                         {['?', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100', '☕️'].map((effort: string) => <div key={effort}>
-                            <input className='peer sr-only' id={`effort_${effort}`} defaultChecked={votes[`${user.username}`] === effort} type="radio" value={effort} name="effort" required />
-                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${votes[user.username] === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
+                            <input className='peer sr-only' id={`effort_${effort}`} defaultChecked={user && votes[`${user.username}`] === effort} type="radio" value={effort} name="effort" required />
+                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${user && votes[user.username] === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
                         </div>)}
                     </fieldset>
                     <button className='no-js-show w-full p-4 rounded-lg mt-4 bg-emerald-500 text-white'>Submit</button>
                 </Form>
 
-                {user.isHost && <>
+                {user?.isHost && <>
                     <div className='flex gap-4 mt-12'>
                         <Form className='flex w-full' method='post'>
                             <input name="form_type" defaultValue="toggle_effort" required hidden />
@@ -225,9 +269,10 @@ const Session = () => {
             </div>
 
             <footer className='flex items-center w-full lg:max-w-sm p-4 -mb-4 rounded-t-lg bg-white shadow-lg'>
-                <p className='text-sm'><span className='text-gray-400 select-none'>Session </span><span className='font-mono text-emerald-400'>{session_id}</span></p>
+                <p className='text-sm'><span className='text-gray-400 select-none'>Session </span><span className='font-mono text-emerald-400'>{loaderData?.session_id}</span></p>
                 <button className={`no-js-hide whitespace-nowrap w-32 text-sm ml-auto p-2 uppercase rounded-lg ${showCopiedFeedback ? 'bg-emerald-500 text-white cursor-default' : 'bg-emerald-100 text-emerald-600'}`} disabled={showCopiedFeedback} onClick={handleShare}>{showCopiedFeedback ? <span>Copied!</span> : <span>{shareType} invite</span>}</button>
             </footer>
+            {error && <ErrorMessage error={error} />}
         </main>
     );
 }
