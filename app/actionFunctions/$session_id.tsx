@@ -26,7 +26,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
         user = session.get(session_id);
     }
 
-    let { data } = await supabase
+    let { data: sessionData } = await supabase
         .from('sessions')
         .select('*')
         .eq('session_id', session_id)
@@ -34,7 +34,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
 
     switch (form_type) {
         case 'update_effort':
-            const { data: vote, error: getEffortToUpdateError } = await supabase
+            const { data: voteData, error: getEffortToUpdateError } = await supabase
                 .from('votes')
                 .select('*')
                 .eq('user_id', user.user_id)
@@ -45,7 +45,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
             }
             const { error: updateEffortError } = await supabase
                 .from('votes')
-                .update({ ...vote, effort })
+                .update({ ...voteData, effort })
                 .eq('user_id', user.user_id)
 
             if (updateEffortError) {
@@ -55,7 +55,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
         case 'toggle_effort':
             const { error: toggleEffortError } = await supabase
                 .from('sessions')
-                .update({ votes_visible: !Boolean(data.votes_visible) })
+                .update({ votes_visible: !Boolean(sessionData.votes_visible) })
                 .eq('session_id', session_id)
 
             if (toggleEffortError) {
@@ -74,7 +74,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
 
             const { error: clearEffortToggleError } = await supabase
                 .from('sessions')
-                .update({ votes_visible: !Boolean(data.votes_visible) })
+                .update({ votes_visible: !Boolean(sessionData.votes_visible) })
                 .eq('session_id', session_id)
 
             if (clearEffortToggleError) {

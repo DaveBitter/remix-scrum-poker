@@ -26,7 +26,7 @@ const Session = () => {
     const error = loaderData?.error || actionData?.error;
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
-    const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.votes_visible;
+    const votesVisible = fetcher?.data?.votes_visible || loaderData?.votes_visible;
 
     const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
     const shareType = typeof window !== 'undefined' ? (window.navigator['share'] ? 'share' : 'copy') : 'copy';
