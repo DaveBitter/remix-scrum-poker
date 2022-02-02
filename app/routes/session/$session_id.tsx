@@ -1,14 +1,14 @@
 // Libs
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Form, Link, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
 
 // Utils
 import { sessionIDAction, SessionIDActionData } from "~/actionFunctions/$session_id";
 import { sessionIDLoader, SessionIDLoaderData } from "~/loaderFunctions/$session_id";
-import { supabase } from "~/utils/supabaseClient";
 
 // Components
 import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
+import useSupabaseSubscription from "~/hooks/useSupabaseSubscription";
 
 // Page
 export const loader = sessionIDLoader
@@ -20,28 +20,13 @@ const Session = () => {
     const submit = useSubmit();
     const fetcher = useFetcher();
 
+    loaderData?.session_id && useSupabaseSubscription(`sessions:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
+    loaderData?.session_id && useSupabaseSubscription(`votes:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
+
     const error = loaderData?.error || actionData?.error;
     const user = loaderData?.user;
     const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.data?.votes_visible || loaderData?.votes_visible;
-
-    useEffect(() => {
-        const sessionsSubscription = supabase
-            .from(`sessions:session_id=eq.${loaderData?.session_id}`)
-            .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
-            .subscribe()
-
-        const votesSubscription = supabase
-            .from(`votes:session_id=eq.${loaderData?.session_id}`)
-            .on('UPDATE', () => fetcher.load(window.location.pathname + window.location.search))
-            .on('INSERT', () => fetcher.load(window.location.pathname + window.location.search))
-            .subscribe()
-
-        return () => {
-            sessionsSubscription.unsubscribe();
-            votesSubscription.unsubscribe();
-        }
-    }, []);
 
     const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
     const shareType = typeof window !== 'undefined' ? (window.navigator['share'] ? 'share' : 'copy') : 'copy';
