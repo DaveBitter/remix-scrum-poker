@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Utils
 import { getSession, getSessionStorageInit } from "~/sessions";
-import { supabase } from "~/utils/supabaseClient";
+import { supabaseServerClient } from "~/utils/supabaseClient.server";
 
 // Type
 export type IndexActionData = {
@@ -30,14 +30,14 @@ export const indexAction: ActionFunction = async ({ request }): Promise<Response
 
             cookieSession.set(newSession_id, { user_id, username })
 
-            const { error: newSessionError } = await supabase
+            const { error: newSessionError } = await supabaseServerClient
                 .from('sessions')
                 .insert({ session_id: newSession_id, host_id: user_id })
                 .single()
 
             return newSessionError ? { error: JSON.stringify(newSessionError) } : redirect(`/session/${newSession_id}`, await getSessionStorageInit(cookieSession));
         case 'join_session':
-            const { error: existingSessionError } = await supabase
+            const { error: existingSessionError } = await supabaseServerClient
                 .from('sessions')
                 .select('*')
                 .eq('session_id', session_id)

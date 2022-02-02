@@ -3,7 +3,7 @@ import { ActionFunction } from 'remix';
 
 // Utils
 import { getSession } from '~/sessions';
-import { supabase } from '~/utils/supabaseClient';
+import { supabaseServerClient } from '~/utils/supabaseClient.server';
 
 // Type
 export type SessionIDActionData = {
@@ -26,7 +26,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
         user = session.get(session_id);
     }
 
-    let { data: sessionData } = await supabase
+    let { data: sessionData } = await supabaseServerClient
         .from('sessions')
         .select('*')
         .eq('session_id', session_id)
@@ -34,7 +34,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
 
     switch (form_type) {
         case 'update_effort':
-            const { data: voteData, error: getEffortToUpdateError } = await supabase
+            const { data: voteData, error: getEffortToUpdateError } = await supabaseServerClient
                 .from('votes')
                 .select('*')
                 .eq('user_id', user.user_id)
@@ -43,7 +43,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
             if (getEffortToUpdateError) {
                 return { error: JSON.stringify(getEffortToUpdateError) }
             }
-            const { error: updateEffortError } = await supabase
+            const { error: updateEffortError } = await supabaseServerClient
                 .from('votes')
                 .update({ ...voteData, effort })
                 .eq('user_id', user.user_id)
@@ -57,7 +57,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
                 return { error: 'Not authorized to toggle effort.' }
             }
 
-            const { error: toggleEffortError } = await supabase
+            const { error: toggleEffortError } = await supabaseServerClient
                 .from('sessions')
                 .update({ votes_visible: !Boolean(sessionData.votes_visible) })
                 .eq('session_id', session_id)
@@ -71,7 +71,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
                 return { error: 'Not authorized to clear effort.' }
             }
 
-            const { error: clearEffortError } = await supabase
+            const { error: clearEffortError } = await supabaseServerClient
                 .from('votes')
                 .update({ effort: null })
                 .eq('session_id', session_id)
@@ -80,7 +80,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
                 return { error: JSON.stringify(clearEffortError) }
             }
 
-            const { error: clearEffortToggleError } = await supabase
+            const { error: clearEffortToggleError } = await supabaseServerClient
                 .from('sessions')
                 .update({ votes_visible: !Boolean(sessionData.votes_visible) })
                 .eq('session_id', session_id)

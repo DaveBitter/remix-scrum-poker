@@ -20,8 +20,8 @@ const Session = () => {
     const submit = useSubmit();
     const fetcher = useFetcher();
 
-    loaderData?.session_id && useSupabaseSubscription(`sessions:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
-    loaderData?.session_id && useSupabaseSubscription(`votes:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
+    loaderData?.session_id && useSupabaseSubscription(loaderData?.SUPABASE_URL || '', loaderData?.SUPABASE_ANON_KEY || '', `sessions:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
+    loaderData?.session_id && useSupabaseSubscription(loaderData?.SUPABASE_URL || '', loaderData?.SUPABASE_ANON_KEY || '', `votes:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
 
     const { usedShareType, triggerShare, showCopiedFeedback } = useShare({ type: 'share', content: `${typeof window !== 'undefined' && window.location.origin}/?join_session_id=${loaderData?.session_id}` })
 
