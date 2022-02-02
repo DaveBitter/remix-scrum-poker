@@ -1,4 +1,4 @@
-import { createCookieSessionStorage } from "remix";
+import { createCookieSessionStorage, Session } from "remix";
 
 const { getSession, commitSession, destroySession } =
     createCookieSessionStorage({
@@ -8,4 +8,10 @@ const { getSession, commitSession, destroySession } =
         }
     });
 
-export { getSession, commitSession, destroySession };
+const getSessionStorageInit: any = async (cookieSession: Session) => ({
+    headers: {
+        "Set-Cookie": await commitSession(cookieSession)
+    }
+})
+
+export { getSession, getSessionStorageInit, destroySession };

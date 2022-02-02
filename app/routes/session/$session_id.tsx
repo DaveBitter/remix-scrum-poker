@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActionFunction, Form, json, Link, LoaderFunction, redirect, useFetcher, useLoaderData, useParams, useSubmit } from "remix";
 
-import { commitSession, getSession } from "~/sessions";
+import { getSession, getSessionStorageInit } from "~/sessions";
 import { supabase } from "~/utils/supabaseClient";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
@@ -9,11 +9,8 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         return redirect('/')
     }
 
-    const session = await getSession(
-        request.headers.get("Cookie")
-    );
-
-    let user = session.get(params.session_id);
+    const cookieSession = await getSession(request.headers.get("Cookie"));
+    let user = cookieSession.get(params.session_id);
 
     if (!user) {
         return redirect(`/?join_session_id=${params.session_id}`)
@@ -25,18 +22,18 @@ export const loader: LoaderFunction = async ({ params, request }) => {
         .eq('session_id', params.session_id)
         .single()
 
-    user.isHost = data.host_id === user.vote_id
+    user.isHost = data.host_id === user.user_id
 
     let { data: userVote } = await supabase
         .from('votes')
         .select('*')
-        .eq('vote_id', user.vote_id)
+        .eq('user_id', user.user_id)
         .single();
 
     if (!userVote) {
         await supabase
             .from('votes')
-            .insert({ session_id: params.session_id, vote_id: user.vote_id, username: user.username, effort: null })
+            .insert({ session_id: params.session_id, user_id: user.user_id, username: user.username, effort: null })
             .single()
     }
 
@@ -48,15 +45,11 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     let hostname;
 
     if (votes) {
-        hostname = votes.find(({ vote_id }) => vote_id === data.host_id)?.username;
+        hostname = votes.find(({ user_id }) => user_id === data.host_id)?.username;
         votes = votes.reduce((acc, { username, effort }) => ({ ...acc, [username]: effort }), {})
     }
 
-    return json({ session_id: params.session_id, data, user, hostname, votes, error }, {
-        headers: {
-            "Set-Cookie": await commitSession(session)
-        }
-    });
+    return json({ session_id: params.session_id, data, user, hostname, votes, error }, await getSessionStorageInit(cookieSession));
 };
 
 type ActionData = {
@@ -90,13 +83,13 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
             let { data: vote } = await supabase
                 .from('votes')
                 .select('*')
-                .eq('vote_id', user.vote_id)
+                .eq('user_id', user.user_id)
                 .single();
 
             await supabase
                 .from('votes')
                 .update({ ...vote, effort })
-                .eq('vote_id', user.vote_id)
+                .eq('user_id', user.user_id)
             break;
         case 'toggle_effort':
             await supabase

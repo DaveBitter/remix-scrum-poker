@@ -4,58 +4,48 @@ import { hri } from 'human-readable-ids';
 import { v4 as uuidv4 } from 'uuid';
 
 import { supabase } from "~/utils/supabaseClient";
-import { commitSession, getSession } from "~/sessions";
+import { getSession, getSessionStorageInit } from "~/sessions";
 
 type ActionData = {
   error?: any
 }
 
 export const action: ActionFunction = async ({ request }): Promise<Response | ActionData> => {
-  const form = await request.formData();
-  const form_type = form.get("form_type") as string;
-  const username = form.get("username") as string;
-  const session_id = form.get("session_id") as string;
+  const formData = await request.formData();
+  const cookieSession = await getSession(request.headers.get("Cookie"));
 
-  const session = await getSession(
-    request.headers.get("Cookie")
-  );
-  const vote_id = uuidv4();
-  const newSession_id = hri.random();
+  const form_type = formData.get("form_type");
+  const username = formData.get("username");
+  const session_id = formData.get("session_id") as string;
+  const user_id = uuidv4();
 
   switch (form_type) {
     case 'create_session':
+      const newSession_id = hri.random();
 
-      session.set(newSession_id, { vote_id, username })
+      cookieSession.set(newSession_id, { user_id, username })
 
-      const newSessionData = await supabase
+      const { error: newSessionError } = await supabase
         .from('sessions')
-        .insert({ session_id: newSession_id, host_id: vote_id })
+        .insert({ session_id: newSession_id, host_id: user_id })
         .single()
 
-      return newSessionData.error ? { error: newSessionData.error } : redirect(`/session/${newSession_id}`, {
-        headers: {
-          "Set-Cookie": await commitSession(session)
-        }
-      });
+      return newSessionError ? { error: newSessionError } : redirect(`/session/${newSession_id}`, await getSessionStorageInit(cookieSession));
     case 'join_session':
-      const existingSessionData = await supabase
+      const { error: existingSessionError } = await supabase
         .from('sessions')
         .select('*')
         .eq('session_id', session_id)
         .single()
 
 
-      if (existingSessionData.error) {
-        return { error: existingSessionData.error }
+      if (existingSessionError) {
+        return { error: existingSessionError }
       }
 
-      session.set(session_id, { vote_id, username })
+      cookieSession.set(session_id, { user_id, username })
 
-      return redirect(`/session/${session_id}`, {
-        headers: {
-          "Set-Cookie": await commitSession(session)
-        }
-      })
+      return redirect(`/session/${session_id}`, await getSessionStorageInit(cookieSession))
     default:
       return {};
   }
