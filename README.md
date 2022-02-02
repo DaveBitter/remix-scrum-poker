@@ -8,11 +8,8 @@ I build this Scrum Poker as a demo project to show how you can build an interact
 
 I use this web application as part of a talk on the basics of Remix. Head over to [my website](https://davebitter.com) for an overview of the talks I give and/or shoot me a message at [daveybitter@gmail.com](mailto:daveybitter@gmail.com) if you are interested in me giving this talk at your event!
 
-## APIs
-Scrum Poker uses several APIs to retrieve data.
-- [ipify API](https://www.ipify.org/) to retrieve the current user's IP as a good default
-- [GeoIP API](https://geo.ipify.org) to retrieve information on submitted IP
-- [leaflet-geosearch](https://github.com/smeijer/leaflet-geosearch) to retrieve information on location
+## Supabase
+Scrum Poker uses [Supabase](https://supabase.com/) to store data and have real-time updates on sessions.
 
 ## Getting started
 
