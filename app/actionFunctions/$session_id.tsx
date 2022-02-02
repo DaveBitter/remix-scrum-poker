@@ -82,7 +82,7 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
 
             const { error: clearEffortToggleError } = await supabaseServerClient
                 .from('sessions')
-                .update({ votes_visible: !Boolean(sessionData.votes_visible) })
+                .update({ votes_visible: false })
                 .eq('session_id', session_id)
 
             if (clearEffortToggleError) {

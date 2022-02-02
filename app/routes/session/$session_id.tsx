@@ -55,7 +55,11 @@ const Session = () => {
             </aside>
 
             <div className='flex flex-col my-auto w-full max-w-2xl p-8 rounded-lg bg-white shadow-lg radius-m'>
-                <p className='no-js-hide mx-auto py-1 px-2 mb-4 rounded-lg bg-gray-100 text-gray-500'>waiting on <span className='text-emerald-500'>{usersNotVoted.length === 1 ? usersNotVoted[0] : `${usersNotVoted.length} people`}</span></p>
+                {votesVisible ?
+                    <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-emerald-500 text-white'>discuss differences</p> :
+                    !!usersNotVoted.length ?
+                        <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-gray-100 text-gray-500'>waiting on <span className='text-emerald-500'>{usersNotVoted.length === 1 ? usersNotVoted[0] : `${usersNotVoted.length} people`}</span></p> :
+                        <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-emerald-500 text-white'>everybody voted!</p>}
 
                 <Form method='post' onChange={e => submit(e.currentTarget)}>
                     <input name="form_type" defaultValue="update_effort" required hidden />
