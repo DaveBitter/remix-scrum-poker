@@ -72,7 +72,7 @@ const Index = () => {
           <Form className='flex flex-col' method="post">
             <input name="form_type" defaultValue="create_session" required hidden />
             <label className='' htmlFor="username">Your name</label>
-            <input className='my-2 p-4 rounded-lg bg-gray-100' id="username" name="username" required />
+            <input className='my-2 p-4 rounded-lg bg-gray-100' id="username" name="username" autoFocus={!join_session_id} required />
             <button className='p-4 rounded-lg mt-4 uppercase bg-emerald-500 text-white'>New session</button>
           </Form>
 

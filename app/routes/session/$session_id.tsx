@@ -146,6 +146,15 @@ export const action: ActionFunction = async ({ request, params }): Promise<Respo
             if (clearEffortError) {
                 return { error: JSON.stringify(clearEffortError) }
             }
+
+            const { error: clearEffortToggleError } = await supabase
+                .from('sessions')
+                .update({ votes_visible: !Boolean(data.votes_visible) })
+                .eq('session_id', session_id)
+
+            if (clearEffortToggleError) {
+                return { error: JSON.stringify(clearEffortToggleError) }
+            }
             break;
         default:
             break;
