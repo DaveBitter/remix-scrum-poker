@@ -17,7 +17,7 @@ const Index = () => {
   const join_session_id = searchParams.get('join_session_id') || ''
 
   return (
-    <main className='h-screen flex flex-col justify-center lg:items-center p-4 bg-gray-50'>
+    <main className='h-screen flex flex-col justify-center items-center p-4 bg-gray-50'>
 
       <div className='flex flex-col w-full max-w-2xl p-8 rounded-lg radius-m bg-white shadow-lg'>
         <img className='box-content w-12 h-12 mb-8 lg:mb-12 mx-auto' src='/img/logo.png' />

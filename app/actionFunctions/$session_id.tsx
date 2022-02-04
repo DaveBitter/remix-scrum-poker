@@ -71,22 +71,19 @@ export const sessionIDAction: ActionFunction = async ({ request, params }): Prom
                 return { error: 'Not authorized to clear effort.' }
             }
 
-            const { error: clearEffortError } = await supabaseServerClient
-                .from('votes')
-                .update({ effort: null })
-                .eq('session_id', session_id)
+            const [{ error: clearEffortToggleError }, { error: clearEffortError }] = await Promise.all([
+                supabaseServerClient
+                    .from('sessions')
+                    .update({ votes_visible: false })
+                    .eq('session_id', session_id),
+                supabaseServerClient
+                    .from('votes')
+                    .update({ effort: null })
+                    .eq('session_id', session_id)
+            ])
 
-            if (clearEffortError) {
-                return { error: JSON.stringify(clearEffortError) }
-            }
-
-            const { error: clearEffortToggleError } = await supabaseServerClient
-                .from('sessions')
-                .update({ votes_visible: false })
-                .eq('session_id', session_id)
-
-            if (clearEffortToggleError) {
-                return { error: JSON.stringify(clearEffortToggleError) }
+            if (clearEffortToggleError || clearEffortError) {
+                return { error: JSON.stringify(clearEffortToggleError || clearEffortError) }
             }
             break;
         default:
