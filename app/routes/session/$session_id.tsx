@@ -1,5 +1,7 @@
 // Libs
-import { Form, Link, useActionData, useFetcher, useLoaderData, useSubmit } from "remix";
+import { useEffect, useRef, useState } from "react";
+import { Form, Link, useActionData, useFetcher, useLoaderData, useSubmit, useTransition } from "remix";
+import { SupabaseRealtimePayload } from "@supabase/supabase-js";
 
 // Utils
 import { sessionIDAction, SessionIDActionData } from "~/actionFunctions/$session_id";
@@ -9,20 +11,46 @@ import { sessionIDLoader, SessionIDLoaderData } from "~/loaderFunctions/$session
 import ErrorMessage from "~/components/ErrorMessage/ErrorMessage";
 import useSupabaseSubscription from "~/hooks/useSupabaseSubscription";
 import useShare from "~/hooks/useShare";
+import throttle from "~/utils/throttle";
+import debounce from "~/utils/debounce";
 
 // Page
 export const loader = sessionIDLoader
 export const action = sessionIDAction;
 
+const throttler = (cb: () => void) => throttle(cb, 500)
+const debouncer = (cb: () => void) => debounce(cb, 1000)
+
 const Session = () => {
     const loaderData = useLoaderData<SessionIDLoaderData>();
     const actionData = useActionData<SessionIDActionData>();
+    const [optimisticVote, setOptimisticVote] = useState<null | string>();
     const submit = useSubmit();
     const fetcher = useFetcher();
+    const transition = useTransition()
+    const votesFormRef = useRef<null | HTMLFormElement>(null)
 
-    loaderData?.session_id && useSupabaseSubscription(loaderData?.SUPABASE_URL || '', loaderData?.SUPABASE_ANON_KEY || '', `sessions:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
-    loaderData?.session_id && useSupabaseSubscription(loaderData?.SUPABASE_URL || '', loaderData?.SUPABASE_ANON_KEY || '', `votes:session_id=eq.${loaderData?.session_id}`, () => fetcher.load(window.location.pathname));
+    const handleVotesUpdate = (payload: SupabaseRealtimePayload<any>) => {
+        const isClearingMyEffort = payload.new?.username === user?.username && !payload.new.effort;
 
+        if (isClearingMyEffort) {
+            setOptimisticVote(null);
+            votesFormRef.current?.reset();
+        }
+
+        throttler(() => fetcher.load(window.location.pathname))
+    }
+
+    loaderData?.session_id && useSupabaseSubscription(
+        loaderData?.SUPABASE_URL || '',
+        loaderData?.SUPABASE_ANON_KEY || '',
+        `sessions:session_id=eq.${loaderData?.session_id}`,
+        () => throttler(() => fetcher.load(window.location.pathname)));
+    loaderData?.session_id && useSupabaseSubscription(
+        loaderData?.SUPABASE_URL || '',
+        loaderData?.SUPABASE_ANON_KEY || '',
+        `votes:session_id=eq.${loaderData?.session_id}`,
+        (payload: SupabaseRealtimePayload<any>) => handleVotesUpdate(payload));
     const { usedShareType, triggerShare, showCopiedFeedback } = useShare({ type: 'share', content: `${typeof window !== 'undefined' && window.location.origin}/?join_session_id=${loaderData?.session_id}` })
 
     const error = loaderData?.error || actionData?.error;
@@ -30,6 +58,27 @@ const Session = () => {
     const votes = fetcher?.data?.votes || loaderData?.votes;
     const votesVisible = fetcher?.data?.votes_visible || loaderData?.votes_visible;
     const usersNotVoted = Object.keys(votes).filter(key => !votes[key]);
+    const activeUserEffort = optimisticVote || votes[`${user?.username}`];
+
+    useEffect(() => {
+        switch (transition.state) {
+            case 'submitting':
+                const effort = transition?.submission?.formData.get('effort');
+                const form_type = transition?.submission?.formData.get('form_type');
+                form_type === 'update_effort' && user?.username && effort && setOptimisticVote(effort as string);
+
+                if (form_type === 'clear_effort') {
+                    setOptimisticVote(null);
+                    votesFormRef.current?.reset();
+                }
+                break;
+            case 'idle':
+                debouncer(() => setOptimisticVote(null))
+                break;
+            default:
+                break;
+        }
+    }, [transition.state]);
 
     return (
         <main className='flex flex-col justify-center items-center h-screen p-4 pt-0 bg-gray-50'>
@@ -61,13 +110,13 @@ const Session = () => {
                         <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-gray-100 text-gray-500'>waiting on <span className='text-emerald-500'>{usersNotVoted.length === 1 ? usersNotVoted[0] : `${usersNotVoted.length} people`}</span></p> :
                         <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-emerald-500 text-white'>everybody voted!</p>}
 
-                <Form method='post' onChange={e => submit(e.currentTarget)}>
+                <Form ref={votesFormRef} method='post' onChange={e => submit(e.currentTarget)}>
                     <input name="form_type" defaultValue="update_effort" required hidden />
 
                     <fieldset className='grid grid-cols-3 gap-4' id="effort">
                         {['?', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100', '☕️'].map((effort: string) => <div key={effort}>
-                            <input className='peer sr-only' id={`effort_${effort}`} defaultChecked={user && votes[`${user.username}`] === effort} type="radio" value={effort} name="effort" required />
-                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${user && votes[user.username] === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
+                            <input className='peer sr-only' id={`effort_${effort}`} checked={effort === activeUserEffort} onChange={() => { }} type="radio" value={effort} name="effort" required />
+                            <label className={`flex justify-center items-center p-6 lg:p-12 rounded-lg cursor-pointer text-xl font-medium bg-gray-100 hover:bg-emerald-200 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:pointer-events-none select-none ${activeUserEffort === effort && `${typeof window !== 'undefined' ? 'bg-emerald-500' : 'bg-emerald-300'} text-white pointer-events-none`}`} htmlFor={`effort_${effort}`}>{effort}</label>
                         </div>)}
                     </fieldset>
                     <button className='no-js-show w-full p-4 rounded-lg mt-4 bg-emerald-500 text-white'>Submit</button>
