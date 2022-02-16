@@ -10,7 +10,7 @@ import {
 } from 'remix';
 import type { LinksFunction } from 'remix';
 
-import tailwindStyles from './tailwind.css'
+import appStyles from './styles/app.css'
 import noJSStyles from './styles/no-js.css'
 import useServiceWorker from './hooks/useServiceWorker';
 import { useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react';
 export let links: LinksFunction = () => {
   return [
     { rel: 'stylesheet', href: noJSStyles },
-    { rel: 'stylesheet', href: tailwindStyles }
+    { rel: 'stylesheet', href: appStyles }
   ];
 };
 
