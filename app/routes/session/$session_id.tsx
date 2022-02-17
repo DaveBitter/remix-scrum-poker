@@ -81,11 +81,11 @@ const Session = () => {
     }, [transition.state]);
 
     return (
-        <main className='flex flex-col justify-center items-center h-screen p-4 pt-0 bg-gray-50'>
+        <main className='flex flex-col justify-center items-center min-h-screen p-4 pt-0 bg-gray-50'>
             <aside className="flex items-center w-screen p-4 -mx-4 rounded-b-lg bg-white shadow-lg">
                 <div className='relative'>
                     <img className='box-content w-12 h-12 mr-2 pr-2 border-r-2 border-gray-200' src='/img/logo.png' />
-                    <Link className='absolute top-0 right-0 bottom-0 left-0' style={{ fontSize: 0 }} to='/'>Back to overview</Link>
+                    <Link className='absolute top-0 right-0 bottom-0 left-0' style={{ fontSize: 0 }} to='/' target='__blank'>Back to overview</Link>
                 </div>
 
                 {votes && <ul className='flex gap-8 pl-2 w-full overflow-x-auto'>
@@ -103,7 +103,7 @@ const Session = () => {
                 </ul>}
             </aside>
 
-            <div className='flex flex-col my-auto w-full max-w-2xl p-8 rounded-lg bg-white shadow-lg radius-m'>
+            <div className='flex flex-col w-full max-w-2xl my-12 p-8 rounded-lg bg-white shadow-lg radius-m'>
                 {votesVisible ?
                     <p className='mx-auto py-1 px-2 mb-4 rounded-lg bg-emerald-500 text-white'>discuss differences</p> :
                     !!usersNotVoted.length ?
