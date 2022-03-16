@@ -81,7 +81,7 @@ const Session = () => {
     }, [transition.state]);
 
     return (
-        <main className='flex flex-col justify-center items-center min-h-screen p-4 pt-0 bg-gray-50'>
+        <main className='flex flex-col justify-between items-center min-h-screen p-4 pt-0 bg-gray-50'>
             <aside className="flex items-center w-screen p-4 -mx-4 rounded-b-lg bg-white shadow-lg">
                 <div className='relative'>
                     <img className='box-content w-12 h-12 mr-2 pr-2 border-r-2 border-gray-200' src='/img/logo.png' />
